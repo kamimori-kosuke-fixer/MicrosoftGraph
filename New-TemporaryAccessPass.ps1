@@ -39,7 +39,7 @@ function Validate-Input {
     }
     
     # 開始日時が指定されていない場合、現在時刻を設定
-    if([System.String]::IsNullOrEmpty($StartDatetime) -or $StartDatetime -lt (Get-Date)){
+    if ([System.String]::IsNullOrEmpty($StartDatetime) -or $StartDatetime -lt (Get-Date)) {
         $StartDatetime = (Get-Date)
         Write-Host "StartDatetimeが過去日または未入力です。現在時刻($($StartDatetime))を利用します。"
     }
@@ -53,15 +53,15 @@ function Validate-Input {
     $minEndDate = $StartDatetime.AddMinutes(10).ToString("yyyy-MM-dd hh:mm")
     $maxEndDate = $StartDatetime.AddDays(30).ToString("yyyy-MM-dd hh:mm")
     $lifeTimeMinutes = [math]::Round(($EndDatetime - $StartDatetime).TotalMinutes)
-    if($lifeTimeMinutes -lt 60 -or $lifeTimeMinutes -ge 43200) {
+    if ($lifeTimeMinutes -lt 60 -or $lifeTimeMinutes -ge 43200) {
         Write-Warning "開始日時と終了日時の差は60分以上かつ30日未満である必要があります。"
         Write-Host "StartDatetimeが$($StartDatetime)の場合、$($minEndDate)～$($maxEndDate)の間の日時をEndDatetimeに指定してください"
     }
     
     $validInput = @{
         'StartDatetime' = $StartDatetime
-        'EndDatetime' = $EndDatetime
-        'Users' = $Users
+        'EndDatetime'   = $EndDatetime
+        'Users'         = $Users
     }
     
     return $validInput
@@ -74,7 +74,7 @@ function Add-TemporaryAccessPass {
         $EndDatetime,
         $Users
     )
-
+    
     $TAPInfo = @()
     foreach ($User in $Users) {
         # 処理実行中に指定された開始時間を超過した場合はコマンド実行時間の20秒後を指定する
@@ -99,14 +99,15 @@ function Add-TemporaryAccessPass {
             $TAP = New-MgUserAuthenticationTemporaryAccessPassMethod @TAPParams
             #アウトプットの成型
             if (![System.String]::IsNullOrEmpty($TAP)) {
-                $TAPInfo+=[PSCustomObject]@{
-                        UPN                 = $User
-                        StartDatetime       = $TAP.StartDatetime.AddHours(9)
-                        EndDatetime         = $TAP.StartDatetime.AddHours(9).AddMinutes($TAP.LifetimeInMinutes)
-                        TemporaryAccessPass = $TAP.TemporaryAccessPass
-                    }
+                $TAPInfo += [PSCustomObject]@{
+                    UPN                 = $User
+                    StartDatetime       = $TAP.StartDatetime.AddHours(9)
+                    EndDatetime         = $TAP.StartDatetime.AddHours(9).AddMinutes($TAP.LifetimeInMinutes)
+                    TemporaryAccessPass = $TAP.TemporaryAccessPass
+                }
             }
-        } catch {
+        }
+        catch {
             Write-Warning "ユーザー $_ の処理中にエラーが発生しました: $($_.Exception.Message)"
             $TAP = $null
         }
@@ -118,7 +119,7 @@ function Add-TemporaryAccessPass {
 $actionDate = Get-Date -Format "yyyy-MM-dd-HH-mm-ss"
 
 # ファイルからユーザー一覧を取得
-if (![System.String]::IsNullOrEmpty($UserListFile)){
+if (![System.String]::IsNullOrEmpty($UserListFile)) {
     try {
         $Users = Get-Content $UserListFile
     }
@@ -135,12 +136,14 @@ $params = @{
 
 # モジュール導入
 if (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication) {
-} else {
+}
+else {
     Install-Module Microsoft.Graph.Authentication -Force
 }
 if (Get-Module -ListAvailable -Name Microsoft.Graph.Identity.SignIns) {
     Import-Module Microsoft.Graph.Identity.SignIns
-} else {
+}
+else {
     Install-Module Microsoft.Graph.Identity.SignIns -Force
     Import-Module Microsoft.Graph.Identity.SignIns
 }
@@ -150,11 +153,11 @@ Connect-MgGraph -Scopes UserAuthenticationMethod.ReadWrite.All | Out-Null
 
 # 入力値チェック
 $isValidInput = Validate-Input @params
-
 # 処理実行
 if ($isValidInput) {
-    $TAPInfo = Add-TemporaryAccessPass @params
-} else {
+    $TAPInfo = Add-TemporaryAccessPass @isValidInput
+}
+else {
     Write-Host "入力が無効です。"
 }
 
@@ -162,7 +165,8 @@ if ($isValidInput) {
 if ($TAPInfo.count) {
     $TAPInfo | Export-Csv -Path ".\TAPList_$($actionDate).csv" -Encoding UTF8 -NoTypeInformation
     "$($TAPInfo.count)件のCSVが生成されました。.\TAPList_$($actionDate).csvを確認してください"
-    $TAPInfo|Out-GridView
-} else {
+    $TAPInfo | Out-GridView
+}
+else {
     Write-Warning "結果が見つかりません。処理エラーが発生している可能性があります"
 }
